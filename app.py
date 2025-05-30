@@ -23,15 +23,19 @@ from sklearn.decomposition import LatentDirichletAllocation
 from statsmodels.tsa.holtwinters import ExponentialSmoothing, SimpleExpSmoothing
 from duckduckgo_search import DDGS # For DuckDuckGo Search
 
-# --- Page Configuration ---
+# --- Page Configuration - MUST BE THE FIRST STREAMLIT COMMAND ---
 st.set_page_config(
     page_title="Market Research & Analysis Tool",
     page_icon="📊",
     layout="wide"
 )
 
+_nltk_download_messages = [] # Global list to store NLTK download messages
+
 # --- Download NLTK resources (run once or handled by functions) ---
 def download_nltk_resources():
+    """Checks and downloads NLTK resources, collecting messages."""
+    global _nltk_download_messages # Ensure we're modifying the global list
     resources = {
         "vader_lexicon": "sentiment/vader_lexicon.zip",
         "punkt": "tokenizers/punkt",
@@ -40,15 +44,18 @@ def download_nltk_resources():
     for resource_name, resource_path in resources.items():
         try:
             nltk.data.find(resource_path)
-            # st.sidebar.info(f"NLTK resource '{resource_name}' already downloaded.") # Optional: for debugging
-        except LookupError:
-            st.sidebar.info(f"Downloading NLTK resource: {resource_name}...")
-            nltk.download(resource_name, quiet=True)
-            st.sidebar.success(f"NLTK resource '{resource_name}' downloaded.")
-        except Exception as e:
-            st.sidebar.error(f"Error checking/downloading NLTK resource {resource_name}: {e}")
+            _nltk_download_messages.append(f"NLTK resource '{resource_name}' already available.")
+        except LookupError: # More general exception for NLTK download issues
+            _nltk_download_messages.append(f"NLTK resource '{resource_name}' not found. Downloading...")
+            try:
+                nltk.download(resource_name, quiet=True)
+                _nltk_download_messages.append(f"NLTK resource '{resource_name}' downloaded successfully.")
+            except Exception as download_e: # Catch specific download errors
+                _nltk_download_messages.append(f"Error downloading NLTK resource '{resource_name}': {download_e}")
+        except Exception as e: # Catch other errors during find
+            _nltk_download_messages.append(f"Error checking NLTK resource '{resource_name}': {e}")
 
-download_nltk_resources() # Call this early
+download_nltk_resources() # Call this early to initiate downloads
 
 # --- Helper Functions for Data Exploration (Existing) ---
 def display_dataframe_info(df):
@@ -236,6 +243,19 @@ def main():
     This dashboard now includes web scraping, text summarization, enhanced sentiment analysis, 
     topic modeling, and time series forecasting.
     """)
+
+    # Display NLTK download messages in the sidebar
+    if _nltk_download_messages:
+        with st.sidebar: # Ensure messages are placed in the sidebar
+            st.subheader("NLTK Resource Status:")
+            for msg in _nltk_download_messages:
+                if "Error" in msg or "failed" in msg:
+                    st.error(msg)
+                elif "downloaded successfully" in msg or "Downloading" in msg :
+                    st.success(msg)
+                else:
+                    st.info(msg)
+            _nltk_download_messages.clear() # Clear messages after displaying
 
     # --- Sidebar for Data Upload ---
     st.sidebar.header("📁 Upload Your Data (CSV)")
