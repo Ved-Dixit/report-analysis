@@ -23,6 +23,13 @@ from sklearn.decomposition import LatentDirichletAllocation
 from statsmodels.tsa.holtwinters import ExponentialSmoothing, SimpleExpSmoothing
 from duckduckgo_search import DDGS # For DuckDuckGo Search
 
+# --- Page Configuration ---
+st.set_page_config(
+    page_title="Market Research & Analysis Tool",
+    page_icon="📊",
+    layout="wide"
+)
+
 # --- Download NLTK resources (run once or handled by functions) ---
 def download_nltk_resources():
     resources = {
@@ -42,13 +49,6 @@ def download_nltk_resources():
             st.sidebar.error(f"Error checking/downloading NLTK resource {resource_name}: {e}")
 
 download_nltk_resources() # Call this early
-
-# --- Page Configuration ---
-st.set_page_config(
-    page_title="Market Research & Analysis Tool",
-    page_icon="📊",
-    layout="wide"
-)
 
 # --- Helper Functions for Data Exploration (Existing) ---
 def display_dataframe_info(df):
