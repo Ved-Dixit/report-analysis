@@ -237,7 +237,7 @@ def search_duckduckgo(query, max_results=5):
 
 # --- Main Application ---
 def main():
-    st.title("📊 Advanced Market Research & AI Analysis Dashboard")
+    st.title("📊 IntellectiQ Market")
     st.markdown("""
     Welcome! Upload your market data (CSV) or use the tools below for analysis.
     This dashboard now includes web scraping, text summarization, enhanced sentiment analysis, 
