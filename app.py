@@ -25,7 +25,7 @@ from duckduckgo_search import DDGS # For DuckDuckGo Search
 
 # --- Page Configuration - MUST BE THE FIRST STREAMLIT COMMAND ---
 st.set_page_config(
-    page_title="Market Research & Analysis Tool",
+    page_title="IntellectiQ Market",
     page_icon="📊",
     layout="wide"
 )
