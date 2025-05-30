@@ -262,6 +262,9 @@ def main():
     uploaded_file = st.sidebar.file_uploader("Choose a CSV file", type="csv",
                                              help="Upload your dataset in CSV format for analysis.")
     df = None
+    numerical_cols = [] # Initialize to avoid NameError if df is None
+    categorical_cols = [] # Initialize to avoid NameError if df is None
+
     if uploaded_file is not None:
         try:
             encodings_to_try = ['utf-8', 'latin1', 'iso-8859-1', 'cp1252']
@@ -282,12 +285,6 @@ def main():
             st.error(f"Could not process uploaded file. Error: {e}")
             return # Stop execution
 
-    # Initialize df as None if no file is uploaded, to avoid errors later
-    if df is None and uploaded_file is None: # Only if no attempt to upload
-        # Create a dummy df to allow AI modules to show up even without data upload
-        # This is useful if users want to use web scraper first
-        pass # df remains None, sections will handle it
-
     # --- Data Exploration & Visualization (Only if df is loaded) ---
     if df is not None:
         st.header("1. 🔍 Data Exploration & Overview")
@@ -301,9 +298,6 @@ def main():
         if not numerical_cols and not categorical_cols:
             st.warning("No plottable columns (numerical or categorical) found.")
         else:
-            # (Visualization code from your previous version - keeping it concise here for brevity)
-            # You would paste your existing robust visualization tabs here.
-            # For this example, I'll put a simplified placeholder.
             viz_tab1, viz_tab2 = st.tabs(["Univariate Analysis", "Bivariate Analysis"])
             with viz_tab1:
                 st.subheader("Single Variable Analysis")
@@ -339,90 +333,86 @@ def main():
                     plt.xticks(rotation=45, ha='right')
                     plt.tight_layout()
                     st.pyplot(fig)
-    else:
-        if uploaded_file is not None: # Error occurred during load
-             st.warning("Data could not be loaded. Some features requiring uploaded data will be unavailable.")
-        # else: No file uploaded yet, this is fine.
 
-    # --- Web Scraping & External Data ---
-    st.header("3. 🌐 Web Scraping & External Data")
+        # --- Web Scraping & External Data (Now inside 'if df is not None') ---
+        st.header("3. 🌐 Web Scraping & External Data")
 
-    scrape_tab1, search_tab2 = st.tabs(["🔗 Scrape Specific URL", "🦆 Search with DuckDuckGo"])
+        scrape_tab1, search_tab2 = st.tabs(["🔗 Scrape Specific URL", "🦆 Search with DuckDuckGo"])
 
-    with scrape_tab1:
-        st.markdown("Fetch basic information from a specific web page. *Always respect website terms of service.*")
-        scrape_url_specific = st.text_input("Enter URL to scrape:", key="scrape_url_input_specific", help="e.g., https://www.example.com/article")
-        if st.button("Scrape & Analyze URL", key="scrape_specific_button"):
-            if scrape_url_specific:
-                with st.spinner(f"Scraping {scrape_url_specific}..."):
-                    scraped_data = scrape_website_content(scrape_url_specific)
-                if "error" in scraped_data: # Check if the dictionary has an 'error' key
-                    st.error(scraped_data["error"]) # Access the error message
-                else:
-                    st.subheader(f"Scraped Title: {scraped_data['title']}")
-                    st.markdown("#### Full Scraped Text (First 1000 chars):")
-                    st.text_area("Full Text", scraped_data['full_text'][:1000]+"...", height=150, key="scraped_full_text_area")
-
-                    if scraped_data['full_text']:
-                        st.markdown("#### Basic Summary of Scraped Text:")
-                        num_summary_sentences = st.slider("Number of sentences for summary:", 1, 10, 3, key="summary_sentences_slider")
-                        with st.spinner("Generating summary..."):
-                            summary = summarize_text_basic(scraped_data['full_text'], num_sentences=num_summary_sentences)
-                        if summary:
-                            st.success("Summary:")
-                            st.write(summary)
-                        else:
-                            st.info("Could not generate summary.")
+        with scrape_tab1:
+            st.markdown("Fetch basic information from a specific web page. *Always respect website terms of service.*")
+            scrape_url_specific = st.text_input("Enter URL to scrape:", key="scrape_url_input_specific", help="e.g., https://www.example.com/article")
+            if st.button("Scrape & Analyze URL", key="scrape_specific_button"):
+                if scrape_url_specific:
+                    with st.spinner(f"Scraping {scrape_url_specific}..."):
+                        scraped_data = scrape_website_content(scrape_url_specific)
+                    if "error" in scraped_data: # Check if the dictionary has an 'error' key
+                        st.error(scraped_data["error"]) # Access the error message
                     else:
-                        st.info("No text content found in paragraphs to summarize.")
-            else:
-                st.warning("Please enter a URL to scrape.")
+                        st.subheader(f"Scraped Title: {scraped_data['title']}")
+                        st.markdown("#### Full Scraped Text (First 1000 chars):")
+                        st.text_area("Full Text", scraped_data['full_text'][:1000]+"...", height=150, key="scraped_full_text_area")
 
-    with search_tab2:
-        st.markdown("Search the web using DuckDuckGo to find relevant articles, competitor information, or market trends.")
-        search_query = st.text_input("Enter your search query for DuckDuckGo:", key="ddg_search_query")
-        num_ddg_results = st.slider("Max number of search results:", 1, 20, 5, key="ddg_num_results")
+                        if scraped_data['full_text']:
+                            st.markdown("#### Basic Summary of Scraped Text:")
+                            num_summary_sentences = st.slider("Number of sentences for summary:", 1, 10, 3, key="summary_sentences_slider")
+                            with st.spinner("Generating summary..."):
+                                summary = summarize_text_basic(scraped_data['full_text'], num_sentences=num_summary_sentences)
+                            if summary:
+                                st.success("Summary:")
+                                st.write(summary)
+                            else:
+                                st.info("Could not generate summary.")
+                        else:
+                            st.info("No text content found in paragraphs to summarize.")
+                else:
+                    st.warning("Please enter a URL to scrape.")
 
-        if st.button("Search DuckDuckGo", key="ddg_search_button"):
-            if search_query:
-                with st.spinner(f"Searching DuckDuckGo for '{search_query}'..."):
-                    search_data = search_duckduckgo(search_query, max_results=num_ddg_results)
-                
-                if search_data.get("message") and "Error" in search_data["message"]:
-                    st.error(search_data["message"])
-                elif search_data.get("message"): # e.g., "No results found"
-                    st.info(search_data["message"])
-                
-                if search_data.get("results"):
-                    st.subheader(f"Search Results for '{search_query}':")
-                    for i, result in enumerate(search_data["results"]):
-                        st.markdown(f"#### {i+1}. {result.get('title', 'No Title')}")
-                        st.markdown(f"**Link:** [{result.get('href', 'No URL')}]({result.get('href', '#')})")
-                        st.markdown(f"**Snippet:** {result.get('body', 'No snippet available.')}")
-                        
-                        if result.get('href'):
-                            scrape_key = f"scrape_ddg_result_{i}"
-                            if st.button(f"Scrape & Summarize this result", key=scrape_key):
-                                with st.spinner(f"Scraping and summarizing {result.get('href')}..."):
-                                    scraped_content_ddg = scrape_website_content(result.get('href'))
-                                if "error" in scraped_content_ddg:
-                                    st.error(f"Could not scrape {result.get('href')}: {scraped_content_ddg['error']}")
-                                elif scraped_content_ddg.get('full_text'):
-                                    summary_ddg = summarize_text_basic(scraped_content_ddg['full_text'], num_sentences=3)
-                                    st.success(f"Summary for '{result.get('title', 'result')[:50]}...':")
-                                    st.write(summary_ddg)
-                                else:
-                                    st.info(f"No text content found at {result.get('href')} to summarize.")
-                        st.markdown("---")
-            else:
-                st.warning("Please enter a search query.")
+        with search_tab2:
+            st.markdown("Search the web using DuckDuckGo to find relevant articles, competitor information, or market trends.")
+            search_query = st.text_input("Enter your search query for DuckDuckGo:", key="ddg_search_query")
+            num_ddg_results = st.slider("Max number of search results:", 1, 20, 5, key="ddg_num_results")
 
-    # --- AI-Powered Market Analysis Modules ---
-    st.header("4. 🧠 AI-Powered Market Analysis")
+            if st.button("Search DuckDuckGo", key="ddg_search_button"):
+                if search_query:
+                    with st.spinner(f"Searching DuckDuckGo for '{search_query}'..."):
+                        search_data = search_duckduckgo(search_query, max_results=num_ddg_results)
+                    
+                    if search_data.get("message") and "Error" in search_data["message"]:
+                        st.error(search_data["message"])
+                    elif search_data.get("message"): # e.g., "No results found"
+                        st.info(search_data["message"])
+                    
+                    if search_data.get("results"):
+                        st.subheader(f"Search Results for '{search_query}':")
+                        for i, result in enumerate(search_data["results"]):
+                            st.markdown(f"#### {i+1}. {result.get('title', 'No Title')}")
+                            st.markdown(f"**Link:** [{result.get('href', 'No URL')}]({result.get('href', '#')})")
+                            st.markdown(f"**Snippet:** {result.get('body', 'No snippet available.')}")
+                            
+                            if result.get('href'):
+                                scrape_key = f"scrape_ddg_result_{i}"
+                                if st.button(f"Scrape & Summarize this result", key=scrape_key):
+                                    with st.spinner(f"Scraping and summarizing {result.get('href')}..."):
+                                        scraped_content_ddg = scrape_website_content(result.get('href'))
+                                    if "error" in scraped_content_ddg:
+                                        st.error(f"Could not scrape {result.get('href')}: {scraped_content_ddg['error']}")
+                                    elif scraped_content_ddg.get('full_text'):
+                                        summary_ddg = summarize_text_basic(scraped_content_ddg['full_text'], num_sentences=3)
+                                        st.success(f"Summary for '{result.get('title', 'result')[:50]}...':")
+                                        st.write(summary_ddg)
+                                    else:
+                                        st.info(f"No text content found at {result.get('href')} to summarize.")
+                            st.markdown("---")
+                else:
+                    st.warning("Please enter a search query.")
 
-    with st.expander("📈 Trend Analysis & Forecasting"):
-        st.markdown("Identify trends and forecast future values from time-series data.")
-        if df is not None and not df.empty:
+        # --- AI-Powered Market Analysis Modules (Now inside 'if df is not None') ---
+        st.header("4. 🧠 AI-Powered Market Analysis")
+
+        with st.expander("📈 Trend Analysis & Forecasting"):
+            st.markdown("Identify trends and forecast future values from time-series data.")
+            # df is not None here
             date_cols = df.select_dtypes(include=['datetime64[ns]']).columns.tolist()
             potential_date_cols = [col for col in df.columns if 'date' in col.lower() or 'time' in col.lower() or 'period' in col.lower()]
             all_potential_dates = list(set(date_cols + potential_date_cols))
@@ -431,7 +421,7 @@ def main():
                 st.info("No clear date/time columns detected for trend analysis. Ensure your CSV has a date column.")
             else:
                 chosen_date_col = st.selectbox("Select Date/Time column:", all_potential_dates, key="trend_date_col")
-                if chosen_date_col and numerical_cols:
+                if chosen_date_col and numerical_cols: # numerical_cols is defined if df is not None
                     try:
                         temp_df = df.copy()
                         temp_df[chosen_date_col] = pd.to_datetime(temp_df[chosen_date_col], errors='coerce')
@@ -453,16 +443,15 @@ def main():
                                 st.markdown("#### Forecasting")
                                 forecast_periods = st.slider("Periods to forecast:", 1, 36, 12, key="fc_periods")
                                 
-                                # Determine seasonality for ExponentialSmoothing
                                 freq = pd.infer_freq(series_to_plot.index)
-                                seasonal_periods_map = {'D':7, 'W':52, 'M':12, 'Q':4, 'A':1, 'Y':1} # Common seasonal periods
+                                seasonal_periods_map = {'D':7, 'W':52, 'M':12, 'Q':4, 'A':1, 'Y':1}
                                 inferred_seasonal_periods = None
                                 if freq:
-                                    freq_prefix = freq.split('-')[0] # e.g. 'M' from 'MS'
+                                    freq_prefix = freq.split('-')[0]
                                     inferred_seasonal_periods = seasonal_periods_map.get(freq_prefix.upper())
                                 
                                 seasonal_options = ['simple', 'additive']
-                                if inferred_seasonal_periods and (series_to_plot > 0).all(): # Multiplicative needs positive data
+                                if inferred_seasonal_periods and (series_to_plot > 0).all():
                                     seasonal_options.append('multiplicative')
 
                                 forecast_model_type = st.selectbox("Forecast Model Type:", seasonal_options, key="fc_model_type",
@@ -472,7 +461,6 @@ def main():
                                 if forecast_model_type != 'simple':
                                     custom_seasonal_periods = st.number_input("Seasonal Periods (e.g., 12 for monthly, 7 for daily):", 
                                                                               min_value=2, value=inferred_seasonal_periods or 12, key="custom_sp")
-
 
                                 if st.button("Generate Forecast", key="gen_fc_btn"):
                                     with st.spinner("Forecasting..."):
@@ -498,50 +486,49 @@ def main():
                                         st.error("Forecasting failed. Check data and parameters.")
                     except Exception as e:
                         st.error(f"Error in Trend Analysis: {e}")
-        else:
-            st.info("Upload CSV data with date and numerical columns for Trend Analysis & Forecasting.")
+            # else: # This else corresponds to `if df is not None and not df.empty:`
+            #     st.info("Upload CSV data with date and numerical columns for Trend Analysis & Forecasting.") # Redundant as df is not None
 
-    with st.expander("👥 Customer Segmentation (K-Means)"):
-        st.markdown("Group customers based on shared characteristics using K-Means clustering.")
-        if df is not None and numerical_cols:
-            if len(numerical_cols) >= 2:
-                cluster_features = st.multiselect(
-                    "Select numerical features for clustering:",
-                    numerical_cols,
-                    default=numerical_cols[:2] if len(numerical_cols) >= 2 else None,
-                    key="cluster_feat_select"
-                )
-                if len(cluster_features) >= 2:
-                    num_clusters = st.slider("Number of clusters (K):", 2, 10, 3, key="kmeans_k")
-                    if st.button("Perform K-Means Clustering", key="run_kmeans"):
-                        with st.spinner("Running K-Means..."):
-                            X = df[cluster_features].copy().dropna()
-                            if X.empty:
-                                st.warning("No data after dropping NaNs from selected features.")
-                            else:
-                                scaler = StandardScaler()
-                                X_scaled = scaler.fit_transform(X)
-                                kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init='auto')
-                                X['Cluster'] = kmeans.fit_predict(X_scaled)
-                                st.success(f"K-Means clustering complete! {num_clusters} clusters identified.")
-                                st.dataframe(X.head())
-                                fig_cluster, ax_cluster = plt.subplots()
-                                sns.scatterplot(data=X, x=cluster_features[0], y=cluster_features[1], hue='Cluster', palette='viridis', ax=ax_cluster)
-                                ax_cluster.set_title(f'Customer Segments ({cluster_features[0]} vs {cluster_features[1]})')
-                                st.pyplot(fig_cluster)
-                                st.markdown("#### Cluster Profiles (Mean Values):")
-                                st.dataframe(X.groupby('Cluster')[cluster_features].mean())
+        with st.expander("👥 Customer Segmentation (K-Means)"):
+            st.markdown("Group customers based on shared characteristics using K-Means clustering.")
+            if numerical_cols: # df is already confirmed not None, numerical_cols is defined
+                if len(numerical_cols) >= 2:
+                    cluster_features = st.multiselect(
+                        "Select numerical features for clustering:",
+                        numerical_cols,
+                        default=numerical_cols[:2] if len(numerical_cols) >= 2 else None,
+                        key="cluster_feat_select"
+                    )
+                    if len(cluster_features) >= 2:
+                        num_clusters = st.slider("Number of clusters (K):", 2, 10, 3, key="kmeans_k")
+                        if st.button("Perform K-Means Clustering", key="run_kmeans"):
+                            with st.spinner("Running K-Means..."):
+                                X = df[cluster_features].copy().dropna()
+                                if X.empty:
+                                    st.warning("No data after dropping NaNs from selected features.")
+                                else:
+                                    scaler = StandardScaler()
+                                    X_scaled = scaler.fit_transform(X)
+                                    kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init='auto')
+                                    X['Cluster'] = kmeans.fit_predict(X_scaled)
+                                    st.success(f"K-Means clustering complete! {num_clusters} clusters identified.")
+                                    st.dataframe(X.head())
+                                    fig_cluster, ax_cluster = plt.subplots()
+                                    sns.scatterplot(data=X, x=cluster_features[0], y=cluster_features[1], hue='Cluster', palette='viridis', ax=ax_cluster)
+                                    ax_cluster.set_title(f'Customer Segments ({cluster_features[0]} vs {cluster_features[1]})')
+                                    st.pyplot(fig_cluster)
+                                    st.markdown("#### Cluster Profiles (Mean Values):")
+                                    st.dataframe(X.groupby('Cluster')[cluster_features].mean())
+                    else:
+                        st.info("Select at least two numerical features for clustering.")
                 else:
-                    st.info("Select at least two numerical features for clustering.")
+                    st.info("Need at least two numerical columns for K-Means clustering.")
             else:
-                st.info("Need at least two numerical columns for K-Means clustering.")
-        else:
-            st.info("Upload CSV data with numerical columns for Customer Segmentation.")
+                st.info("No numerical columns found in the uploaded data for Customer Segmentation.")
 
-    with st.expander("💬 Sentiment Analysis (VADER)"):
-        st.markdown("Analyze text data for sentiment (positive, negative, neutral).")
-        if df is not None:
-            text_cols = df.select_dtypes(include=['object']).columns.tolist()
+        with st.expander("💬 Sentiment Analysis (VADER)"):
+            st.markdown("Analyze text data for sentiment (positive, negative, neutral).")
+            text_cols = df.select_dtypes(include=['object']).columns.tolist() # df is not None
             if text_cols:
                 review_col = st.selectbox("Select text column for Sentiment Analysis:", text_cols, key="sentiment_col_select")
                 if review_col:
@@ -557,20 +544,17 @@ def main():
                         else:
                             st.success("Sentiment analysis complete!")
                             
-                            # Display distribution
                             sentiment_counts = pd.Series(sentiment_labels).value_counts()
                             fig_sent, ax_sent = plt.subplots()
                             sentiment_counts.plot(kind='pie', ax=ax_sent, autopct='%1.1f%%', startangle=90, colors=['lightcoral', 'lightgreen', 'lightskyblue'])
-                            ax_sent.set_ylabel('') # Hide y-label for pie chart
+                            ax_sent.set_ylabel('')
                             ax_sent.set_title(f"Sentiment Distribution for '{review_col}'")
                             st.pyplot(fig_sent)
 
-                            # Display summary stats
                             st.write("Overall Sentiment Scores (Compound):")
                             st.write(f"- Average Compound Score: {np.mean(sentiment_scores):.2f}")
                             st.write(f"- Median Compound Score: {np.median(sentiment_scores):.2f}")
 
-                            # Display sample with sentiments
                             results_df = pd.DataFrame({
                                 "Text (Snippet)": df[review_col].dropna().astype(str).head(20).apply(lambda x: x[:100]+"..."),
                                 "Sentiment": [s['label'] for s in sentiments_data.head(20)],
@@ -579,24 +563,19 @@ def main():
                             st.dataframe(results_df)
             else:
                 st.info("No text (object type) columns found in the uploaded data.")
-        else:
-            st.info("Upload CSV data with a text column for Sentiment Analysis.")
 
-    with st.expander("📚 Topic Modeling (LDA)"):
-        st.markdown("Discover underlying topics in your text data using Latent Dirichlet Allocation.")
-        if df is not None:
-            text_cols_lda = df.select_dtypes(include=['object']).columns.tolist()
+        with st.expander("📚 Topic Modeling (LDA)"):
+            st.markdown("Discover underlying topics in your text data using Latent Dirichlet Allocation.")
+            text_cols_lda = df.select_dtypes(include=['object']).columns.tolist() # df is not None
             if text_cols_lda:
                 lda_text_col = st.selectbox("Select text column for Topic Modeling:", text_cols_lda, key="lda_text_col_select")
                 if lda_text_col:
                     n_topics = st.slider("Number of Topics:", 2, 15, 5, key="lda_n_topics")
                     n_top_words = st.slider("Number of Top Words per Topic:", 3, 15, 7, key="lda_n_top_words")
                     
-                    # Advanced LDA parameters
                     st.markdown("###### Advanced Parameters (Optional)")
                     max_df_lda = st.slider("Max Document Frequency (max_df)", 0.50, 1.00, 0.95, 0.01, help="Ignore terms that appear in more than this fraction of documents.")
                     min_df_lda = st.slider("Min Document Frequency (min_df)", 1, 10, 2, help="Ignore terms that appear in less than this absolute number of documents.")
-
 
                     if st.button("Perform Topic Modeling", key="run_lda"):
                         texts_for_lda = df[lda_text_col].dropna().astype(str).tolist()
@@ -615,7 +594,6 @@ def main():
                                     st.subheader(topic_name)
                                     st.write(", ".join(words))
                                 
-                                # Optional: Display topic distribution for first few documents
                                 if doc_topic_dist is not None:
                                     st.markdown("---")
                                     st.markdown("###### Topic Distribution for Sample Documents (Top 5)")
@@ -626,46 +604,44 @@ def main():
                                 st.error("Topic modeling failed to produce results.")
             else:
                 st.info("No text (object type) columns found for Topic Modeling.")
-        else:
-            st.info("Upload CSV data with a text column for Topic Modeling.")
 
-    # Placeholder for SWOT and Competitor Analysis (can be expanded similarly)
-    with st.expander("📊 SWOT Analysis"):
-        st.markdown("A strategic planning framework. Input your analysis based on data and insights.")
-        # (Your existing SWOT input fields code would go here)
-        col1, col2 = st.columns(2)
-        with col1: st.text_area("Strengths:", height=100, key="swot_s")
-        with col1: st.text_area("Weaknesses:", height=100, key="swot_w")
-        with col2: st.text_area("Opportunities:", height=100, key="swot_o")
-        with col2: st.text_area("Threats:", height=100, key="swot_t")
+        with st.expander("📊 SWOT Analysis"):
+            st.markdown("A strategic planning framework. Input your analysis based on data and insights.")
+            col1, col2 = st.columns(2)
+            with col1: st.text_area("Strengths:", height=100, key="swot_s")
+            with col1: st.text_area("Weaknesses:", height=100, key="swot_w")
+            with col2: st.text_area("Opportunities:", height=100, key="swot_o")
+            with col2: st.text_area("Threats:", height=100, key="swot_t")
 
-    with st.expander("🎯 Competitor Analysis"):
-        st.markdown("Framework for comparing against competitors. (Further AI integration can be added).")
-        if df is not None and len(df.columns) > 1:
-            st.write("Select columns relevant for competitor comparison:")
-            comp_cols = st.multiselect("Competitor attributes:", df.columns.tolist(), key="comp_attrs_select_v2")
-            if comp_cols:
-                st.dataframe(df[comp_cols].head())
-        else:
-            st.info("Upload data with multiple columns to perform competitor analysis.")
-
-
-    # --- Footer / Initial Message ---
-    if df is None and uploaded_file is None: # Only show if no file has been attempted
+        with st.expander("🎯 Competitor Analysis"):
+            st.markdown("Framework for comparing against competitors. (Further AI integration can be added).")
+            if len(df.columns) > 1: # df is not None
+                st.write("Select columns relevant for competitor comparison:")
+                comp_cols = st.multiselect("Competitor attributes:", df.columns.tolist(), key="comp_attrs_select_v2")
+                if comp_cols:
+                    st.dataframe(df[comp_cols].head())
+            else:
+                st.info("Need data with multiple columns to perform competitor analysis.")
+    else:
+        # This block executes if df is None (either no upload or failed upload)
+        if uploaded_file is not None: # Means an upload was attempted but df is still None (error)
+            st.warning("Data could not be loaded. Please check the file format/encoding and try again.")
+        
+        # --- Initial Message / Footer when no data is loaded ---
         st.markdown("---")
-        st.info("👈 Upload a CSV file using the sidebar to explore its data, or use the Web Scraping tool above.")
+        st.info("👈 Upload a CSV file using the sidebar to unlock all analysis tools.")
         st.markdown("""
-        ### Tool Capabilities:
+        ### Tool Capabilities (available after CSV upload):
         *   **Data Exploration & Visualization:** Understand your CSV data.
-        *   **Web Scraping & Summarization:** Fetch and summarize web content from specific URLs or DuckDuckGo search results.
+        *   **Web Scraping & Summarization:** Fetch and summarize web content.
         *   **AI-Powered Analysis:**
             *   Trend Analysis & Forecasting
             *   Customer Segmentation (K-Means)
             *   Sentiment Analysis (VADER)
             *   Topic Modeling (LDA)
-        *   **Strategic Frameworks:** SWOT Analysis.
+        *   **Strategic Frameworks:** SWOT Analysis, Competitor Analysis.
         """)
-
+        
     st.sidebar.markdown("---")
     st.sidebar.markdown("Developed with Streamlit & AI.")
 
