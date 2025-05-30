@@ -29,7 +29,7 @@ st.set_page_config(
     page_icon="📊",
     layout="wide"
 )
-
+plt.rcParams['agg.path.chunksize'] = 20000
 _nltk_download_messages = [] # Global list to store NLTK download messages
 
 # --- Download NLTK resources (run once or handled by functions) ---
