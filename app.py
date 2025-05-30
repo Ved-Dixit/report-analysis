@@ -34,7 +34,7 @@ def download_nltk_resources():
         try:
             nltk.data.find(resource_path)
             # st.sidebar.info(f"NLTK resource '{resource_name}' already downloaded.") # Optional: for debugging
-        except nltk.downloader.DownloadError:
+        except LookupError:
             st.sidebar.info(f"Downloading NLTK resource: {resource_name}...")
             nltk.download(resource_name, quiet=True)
             st.sidebar.success(f"NLTK resource '{resource_name}' downloaded.")
